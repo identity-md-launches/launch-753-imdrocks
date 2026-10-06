@@ -6,5 +6,5 @@
       "constructorArgs": ["0xE89eB4D7153958F9436E2c3fe30D6F2024404cB0"]
     }
   ],
-  "notes": "Deploy IMDRocks with zero ETH. The sole argument is the immutable reserve and payout address; it receives rocks 0 through 9. No owner, initialization, token, pool, or privileged operations. Purchase payments are forwarded immediately; forcibly sent ETH cannot be recovered."
+  "notes": "Deploy only IMDRocks (ERC-721 name IMDRocks, symbol IMDROCK) with zero ETH. Its sole constructor argument is the specified immutable reserve and payout address, which receives rocks 0 through 9. Supply is capped at 100; nextRock starts at 10. Each buy mints the next rock and requires exactly 10000000000000 * (1 + n * n) wei. State is updated before callbacks; purchases are guarded against reentrancy, forward the entire payment, and revert if payout fails. Art and metadata are fully on-chain, with one shared SVG drawing and 100 distinct tints. No launch token, pool, initialization calls, owner, admin, pause, upgrade, price changes, royalties, or withdrawal. Ordinary ETH transfers are rejected; forcibly sent ETH can remain stranded and cannot be recovered."
 }
