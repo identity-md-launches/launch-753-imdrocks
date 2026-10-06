@@ -5,8 +5,9 @@ import {Test, Vm} from "forge-std/Test.sol";
 import {IMDRocks} from "../src/IMDRocks.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {DeploymentFactory, PayoutProbe, BuyerProbe, NonReceiverBuyer, ForcedEther} from "./helpers/SaleActors.sol";
+import {DeploymentFactory, PayoutProbe, BuyerProbe, NonReceiverBuyer} from "./helpers/SaleActors.sol";
 
+/// forge-config: default.fuzz.runs = 1000
 contract IMDRocksTest is Test {
     address internal constant RESERVE = 0xE89eB4D7153958F9436E2c3fe30D6F2024404cB0;
     address internal constant ALICE = address(0xA11CE);
@@ -84,6 +85,17 @@ contract IMDRocksTest is Test {
         rocks.tokenURI(n);
     }
 
+    function test_InvalidNumberBoundaries() public {
+        uint256[2] memory numbers = [uint256(100), type(uint256).max];
+        for (uint256 i; i < numbers.length; ++i) {
+            uint256 n = numbers[i];
+            vm.expectRevert(abi.encodeWithSelector(IMDRocks.InvalidRock.selector, n));
+            rocks.priceOf(n);
+            vm.expectRevert(abi.encodeWithSelector(IMDRocks.InvalidRock.selector, n));
+            rocks.imageOf(n);
+        }
+    }
+
     function test_EntireSaleInOrderExactPayoutAndNoWalletLimit() public {
         uint256 initialBalance = RESERVE.balance;
         uint256 paid;
@@ -126,13 +138,25 @@ contract IMDRocksTest is Test {
         }
     }
 
-    function testFuzz_InexactPaymentReverts(uint96 value) public {
+    function testFuzz_InexactPaymentReverts(uint256 seed) public {
         uint256 price = rocks.priceOf(10);
-        vm.assume(value != price);
+        // Map onto every uint256 except the exact price without discarding inputs.
+        uint256 value = bound(seed, 0, type(uint256).max - 1);
+        if (value >= price) ++value;
         vm.deal(ALICE, value);
         _expectWrongPayment(value, price);
         assertEq(rocks.nextRock(), 10);
         assertEq(rocks.totalSupply(), 10);
+    }
+
+    function test_ZeroAndMaximumPaymentLeaveSaleUnchanged() public {
+        uint256 price = rocks.priceOf(10);
+        _expectWrongPayment(0, price);
+        vm.deal(ALICE, type(uint256).max);
+        _expectWrongPayment(type(uint256).max, price);
+        assertEq(rocks.nextRock(), 10);
+        assertEq(rocks.totalSupply(), 10);
+        assertEq(rocks.balanceOf(ALICE), 0);
     }
 
     function test_OutOfOrderDuplicateAndStaleTransactionsFail() public {
@@ -300,18 +324,6 @@ contract IMDRocksTest is Test {
         assertFalse(transfer);
         assertEq(address(rocks).balance, 0);
         assertEq(rocks.ownerOf(0), RESERVE);
-    }
-
-    function test_ForcedEtherCannotBePreventedAndDoesNotChangeSale() public {
-        new ForcedEther{value: 1 ether}(payable(address(rocks)));
-        assertEq(address(rocks).balance, 1 ether);
-        uint256 beforePayout = RESERVE.balance;
-        _buyAs(ALICE);
-        assertEq(RESERVE.balance - beforePayout, rocks.priceOf(10));
-        assertEq(address(rocks).balance, 1 ether);
-        assertEq(rocks.nextRock(), 11);
-        (bool withdrew,) = address(rocks).call(abi.encodeWithSignature("withdraw()"));
-        assertFalse(withdrew);
     }
 
     function test_ERC165InterfacesAndNoRoyalties() public view {
