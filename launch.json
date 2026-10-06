@@ -1,0 +1,10 @@
+{
+  "kind": "evm_contracts",
+  "contracts": [
+    {
+      "contract": "IMDRocks",
+      "constructorArgs": ["0xE89eB4D7153958F9436E2c3fe30D6F2024404cB0"]
+    }
+  ],
+  "notes": "Deploy IMDRocks with zero ETH. The sole argument is the immutable reserve and payout address; it receives rocks 0 through 9. No owner, initialization, token, pool, or privileged operations. Purchase payments are forwarded immediately; forcibly sent ETH cannot be recovered."
+}
